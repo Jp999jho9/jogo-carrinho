@@ -1,0 +1,30 @@
+body{
+    margin:0;
+    background:#000;
+    overflow:hidden;
+    font-family:Arial;
+    color:#fff
+}
+#Canvas{
+    display:block;
+    margin:0 auto;
+    background:#111
+}
+#hud{
+    position:absolute;
+    top:10px;left:50%;
+    transform:translateX(-50%);
+    font-size:18px
+}
+  #menu,#gameover{
+    position:absolute;
+    inset:0;display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.6)
+}
+  .box{background:#111;padding:20px;border:1px solid #333;border-radius:6px;text-align:center;width:min(380px,95vw)}
+  input,select,button{margin:6px;padding:8px;border-radius:6px;border:1px solid #333;background:#222;color:#fff}
+  button{background:#1abc9c;border:none;font-weight:bold;cursor:pointer}
+  .ghost{background:#222}
+  #ranking{margin-top:10px;text-align:left;font-size:14px;max-height:180px;overflow:auto;border:1px solid #333;border-radius:6px;padding:8px}
