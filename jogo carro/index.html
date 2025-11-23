@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corrida Maneira</title>
+<style>
+  body{margin:0;background:#000;overflow:hidden;font-family:Arial;color:#fff}
+  #Canvas{display:block;margin:0 auto;background:#111}
+  #hud{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:18px}
+  #menu,#gameover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
+  .box{background:#111;padding:20px;border:1px solid #333;border-radius:6px;text-align:center;width:min(380px,95vw)}
+  input,select,button{margin:6px;padding:8px;border-radius:6px;border:1px solid #333;background:#222;color:#fff}
+  button{background:#1abc9c;border:none;font-weight:bold;cursor:pointer}
+  .ghost{background:#222}
+  #ranking{margin-top:10px;text-align:left;font-size:14px;max-height:180px;overflow:auto;border:1px solid #333;border-radius:6px;padding:8px}
+</style>
+</head>
+<body>
+<canvas id="Canvas"></canvas>
+<div id="hud">Pontuação: <span id="pts">0</span></div>
+
+<!-- MENU -->
+<div id="menu">
+  <div class="box">
+    <h2>Corrida</h2>
+    <input id="playerName" placeholder="Seu nome" maxlength="20"><br>
+    <select id="difficulty">
+      <option value="facil">Fácil</option>
+      <option value="medio" selected>Médio</option>
+      <option value="dificil">Difícil</option>
+    </select><br>
+    <button id="startBtn">Iniciar</button>
+
+    <div id="ranking"></div>
+    <!-- NOVO: botão limpar -->
+    <button id="clearBtn" class="ghost" style="width:100%;margin-top:8px">Limpar ranking</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover" style="display:none">
+  <div class="box">
+    <h3>Game Over</h3>
+    <div id="goScore"></div>
+    <div id="goBest" style="margin-top:4px"></div>
+    <button id="retryBtn">Jogar Novamente</button>
+    <button id="menuBtn" class="ghost">Menu</button>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById("Canvas");
+const ctx=canvas.getContext("2d");
+canvas.width=400;canvas.height=600;
+
+// === Sprite do carro ===
+const carroImg=new Image();
+carroImg.src="images/carro.png";
+
+let jogoAtivo=false,pontuacao=0,velocidade=5,spawn=90,obstaculos=[],tick=0;
+let carro={x:canvas.width/2-25,y:canvas.height-100,w:50,h:90,vel:6};
+let teclado={};
+
+// === Sons simples ===
+let audioCtx;
+function beep(freq=440,dur=0.1){audioCtx??=new AudioContext();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.connect(g).connect(audioCtx.destination);o.frequency.value=freq;g.gain.value=0.05;
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+function pointSound(){beep(800,0.05);}
+function crashSound(){beep(200,0.1);setTimeout(()=>beep(100,0.15),100);}
+
+// === Estrada ===
+function desenharEstrada(){
+  ctx.fillStyle="#2d2f3a";ctx.fillRect(50,0,300,canvas.height);
+  ctx.fillStyle="#fff";
+  for(let y=(tick*velocidade)%40-40;y<canvas.height;y+=40)
+    ctx.fillRect(canvas.width/2-2,y,4,20);
+}
+
+// === Carro e obstáculos ===
+function desenharCarro(){ctx.drawImage(carroImg,carro.x,carro.y,carro.w,carro.h);}
+function moverCarro(){
+  if(teclado["ArrowLeft"]&&carro.x>50)carro.x-=carro.vel;
+  if(teclado["ArrowRight"]&&carro.x<canvas.width-50-carro.w)carro.x+=carro.vel;
+}
+function gerarObstaculo(){
+  const w=Math.random()*80+40;
+  const x=Math.random()*(canvas.width-100-w)+50;
+  obstaculos.push({x,y:-40,w,h:30});
+}
+function moverObstaculos(){
+  for(let i=obstaculos.length-1;i>=0;i--){
+    let o=obstaculos[i];o.y+=velocidade;
+    if(o.y>canvas.height){
+      obstaculos.splice(i,1);
+      pontuacao+=10;document.getElementById("pts").textContent=pontuacao;pointSound();
+    }
+  }
+}
+function desenharObstaculos(){ctx.fillStyle="#e74c3c";obstaculos.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));}
+function colisao(){
+  for(let o of obstaculos){
+    if(carro.x<o.x+o.w&&carro.x+carro.w>o.x&&carro.y<o.y+o.h&&carro.y+carro.h>o.y){crashSound();gameOver();}
+  }
+}
+
+// === Jogo ===
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  desenharEstrada();desenharCarro();moverCarro();desenharObstaculos();moverObstaculos();colisao();
+  if(tick%spawn===0)gerarObstaculo();tick++;
+  if(jogoAtivo)requestAnimationFrame(loop);
+}
+function iniciar(){
+  const dif=document.getElementById("difficulty").value;
+  if(dif==="facil"){velocidade=4;spawn=100;carro.vel=6;}
+  if(dif==="medio"){velocidade=5;spawn=90;carro.vel=6;}
+  if(dif==="dificil"){velocidade=6.5;spawn=70;carro.vel=6.5;}
+  carro.x=canvas.width/2-25;carro.y=canvas.height-100;obstaculos=[];pontuacao=0;jogoAtivo=true;
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameover").style.display="none";
+  loop();
+}
+function gameOver(){
+  jogoAtivo=false;
+  const nome=(document.getElementById("playerName").value||"Jogador").trim();
+  let r=JSON.parse(localStorage.getItem("rank")||"[]");
+  const i=r.findIndex(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  if(i>=0){ if(pontuacao>r[i].score) r[i].score=pontuacao; }
+  else r.push({nome,score:pontuacao});
+  r.sort((a,b)=>b.score-a.score); r=r.slice(0,10);
+  localStorage.setItem("rank",JSON.stringify(r)); mostrarRanking();
+  document.getElementById("goScore").textContent="Pontuação: "+pontuacao;
+  document.getElementById("goBest").textContent="Recorde: "+(r.find(x=>x.nome.toLowerCase()===nome.toLowerCase())?.score||pontuacao);
+  document.getElementById("gameover").style.display="flex";
+}
+
+// === Ranking ===
+function mostrarRanking(){
+  let r=JSON.parse(localStorage.getItem("rank")||"[]");
+  const box = r.length ? r.map((x,i)=>`<div>#${i+1} ${x.nome}: ${x.score}</div>`).join("") : "Sem ranking";
+  document.getElementById("ranking").innerHTML = `<div style="text-align:left"><strong>🏆 Ranking (Top 10)</strong><br>${box}</div>`;
+}
+function limparRanking(){
+  if(confirm("Tem certeza que deseja limpar todo o ranking?")){
+    localStorage.removeItem("rank");
+    mostrarRanking();
+  }
+}
+
+// === Controles / UI ===
+window.addEventListener("keydown",e=>{teclado[e.key]=true;if(e.key==="Enter"&&!jogoAtivo)iniciar();});
+window.addEventListener("keyup",e=>{teclado[e.key]=false;});
+document.getElementById("startBtn").onclick=iniciar;
+document.getElementById("retryBtn").onclick=iniciar;
+document.getElementById("menuBtn").onclick=()=>{document.getElementById("menu").style.display="flex";document.getElementById("gameover").style.display="none";}
+document.getElementById("clearBtn").onclick=limparRanking;
+
+mostrarRanking();
+</script>
+</body>
+</html>
